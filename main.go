@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	// "os"
@@ -17,34 +16,34 @@ func main() {
 	// fmt.Println(*findRecursive)
 	path := flag.Arg(0)
 
-	dir, err := os.ReadDir(path)
+	all, err := DirChildren(path)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	for _, file := range dir {
-		// fmt.Println(file.Name(), file.IsDir(), file.Type())
-		if file.IsDir() {
-			fmt.Println("Directory: ", file.Name())
-			dir, err = os.ReadDir(path + "/" + file.Name())
-			if err != nil {
-				log.Fatal(err)
-			}
-			fmt.Println(dir)
-		} else {
-			fmt.Println("File: ", file.Name())
-		}
-	}
+	fmt.Println(all)
 
 	fmt.Println(flag.Args())
 	// files, err = os.ReadDir(path)
 }
 
-func DirChildren(dir_path string) ([]fs.DirEntry, error) {
+func DirChildren(dir_path string) ([]interface{}, error) {
+	// var file_list []fs.DirEntry | string
+	var file_list []interface{}
 	dir, err := os.ReadDir(dir_path)
-
 	if err != nil {
 		return nil, err
 	}
-	return dir, nil
+	for _, file := range dir {
+		if file.IsDir() {
+			dir_c, err := DirChildren(dir_path + "/" + file.Name())
+			if err != nil {
+				return nil, err
+			}
+			file_list = append(file_list, dir_c)
+			fmt.Println(dir_path, file_list)
+		} else {
+			file_list = append(file_list, file)
+		}
+	}
+	return file_list, nil
 }
