@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	var findRecursive = flag.Bool("r", false, "what si ziz")
+	var findRecursive = flag.Bool("r", false, "what is this")
 	flag.Parse()
 	fmt.Print("hej", *findRecursive)
 }
