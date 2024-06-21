@@ -11,6 +11,8 @@ import (
 	// "flag"
 )
 
+var max_depth int
+
 type FileNode struct {
 	fs.DirEntry
 	Children []FileNode
@@ -18,11 +20,16 @@ type FileNode struct {
 
 func main() {
 	// var findRecursive = flag.Bool("r", false, "Will find in all subdirectories") // Maybe a -d 3 for max depth?
+	flag.IntVar(&max_depth, "d", 3, "Set the max depth of file checking.")
 	flag.Parse()
 
-	path := flag.Arg(0)
+	args := flag.Args()
+	if len(args) == 0 {
+		log.Fatal("Where do you want to search bruh?")
+	}
+	path := args[0]
 
-	all, err := DirChildren(path)
+	all, err := GetDirectoryChildren(path, 1)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,7 +58,7 @@ func PrintChildren(all []FileNode, indent int) error {
 	return nil
 }
 
-func DirChildren(dir_path string) ([]FileNode, error) {
+func GetDirectoryChildren(dir_path string, current_depth int) ([]FileNode, error) {
 	var file_list []FileNode
 	dir, err := os.ReadDir(dir_path)
 	if err != nil {
@@ -59,11 +66,15 @@ func DirChildren(dir_path string) ([]FileNode, error) {
 	}
 	for _, file := range dir {
 		if file.IsDir() {
-			dir_c, err := DirChildren(dir_path + "/" + file.Name())
-			if err != nil {
-				return nil, err
+			if current_depth < max_depth {
+				dir_c, err := GetDirectoryChildren(dir_path+"/"+file.Name(), current_depth+1)
+				if err != nil {
+					return nil, err
+				}
+				file_list = append(file_list, FileNode{file, dir_c})
+			} else {
+				file_list = append(file_list, FileNode{file, nil})
 			}
-			file_list = append(file_list, FileNode{file, dir_c})
 		} else {
 			file_list = append(file_list, FileNode{file, nil})
 		}
