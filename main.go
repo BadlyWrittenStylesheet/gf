@@ -48,13 +48,14 @@ func PrintChildren(all []any, indent int) error {
 	for _, file := range all {
 		switch f := file.(type) {
 		case fs.DirEntry:
+			fmt.Print(strings.Repeat("  ", indent))
 			if f.IsDir() {
 				fmt.Println(f.Name(), "/")
 			} else {
-				fmt.Print(strings.Repeat("  ", indent))
 				fmt.Println(f.Name())
 			}
 		case []any:
+			// fmt.Println(indent + 1)
 			err := PrintChildren(f, indent+1)
 			if err != nil {
 				return err
