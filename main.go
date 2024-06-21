@@ -12,6 +12,10 @@ import (
 )
 
 var max_depth int
+var file_name string
+
+// var file_type string
+// var file_ext string
 
 type FileNode struct {
 	fs.DirEntry
@@ -21,6 +25,7 @@ type FileNode struct {
 func main() {
 	// var findRecursive = flag.Bool("r", false, "Will find in all subdirectories") // Maybe a -d 3 for max depth?
 	flag.IntVar(&max_depth, "d", 3, "Set the max depth of file checking.")
+	flag.StringVar(&file_name, "n", "", "Search for files with the given phrase in name")
 	flag.Parse()
 
 	args := flag.Args()
@@ -38,6 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// fmt.Println(all)
 }
 
 func PrintChildren(all []FileNode, indent int) error {
@@ -71,12 +77,24 @@ func GetDirectoryChildren(dir_path string, current_depth int) ([]FileNode, error
 				if err != nil {
 					return nil, err
 				}
+				// this part skips all directtories that have no children if a file_name is specified and the directory doesn't contain that phrase
+				if file_name != "" && len(dir_c) == 0 && !strings.Contains(file.Name(), file_name) {
+					continue
+				}
 				file_list = append(file_list, FileNode{file, dir_c})
 			} else {
 				file_list = append(file_list, FileNode{file, nil})
 			}
 		} else {
-			file_list = append(file_list, FileNode{file, nil})
+
+			// this part is responsible for only appending files that contain the file_name content in them
+			if file_name != "" {
+				if strings.Contains(file.Name(), file_name) {
+					file_list = append(file_list, FileNode{file, nil})
+				}
+			} else {
+				file_list = append(file_list, FileNode{file, nil})
+			}
 		}
 	}
 	return file_list, nil
