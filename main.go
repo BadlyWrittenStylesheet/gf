@@ -27,6 +27,7 @@ func main() {
 	flag.IntVar(&max_depth, "d", 3, "Set the max depth of file checking.")
 	flag.StringVar(&file_name, "n", "", "Search for files with the given phrase in name")
 	flag.Parse()
+	// fmt.Println(max_depth, file_name)
 
 	args := flag.Args()
 	if len(args) == 0 {
@@ -51,8 +52,7 @@ func PrintChildren(all []FileNode, indent int) error {
 
 		fmt.Print(strings.Repeat("  ", indent))
 		if file.IsDir() {
-			fmt.Print(file.Name())
-			fmt.Println("/")
+			fmt.Printf("%s/\n", file.Name())
 			err := PrintChildren(file.Children, indent+1)
 			if err != nil {
 				return err
@@ -71,29 +71,30 @@ func GetDirectoryChildren(dir_path string, current_depth int) ([]FileNode, error
 		return nil, err
 	}
 	for _, file := range dir {
-		if file.IsDir() {
-			if current_depth < max_depth {
+		// fmt.Println(file.IsDir(), dir_path, file.Name())
+		if current_depth <= max_depth {
+			if file.IsDir() {
+				// fmt.Println("Depth:", current_depth, max_depth)
 				dir_c, err := GetDirectoryChildren(dir_path+"/"+file.Name(), current_depth+1)
 				if err != nil {
 					return nil, err
 				}
 				// this part skips all directtories that have no children if a file_name is specified and the directory doesn't contain that phrase
-				if file_name != "" && len(dir_c) == 0 && !strings.Contains(file.Name(), file_name) {
-					continue
+				// fmt.Println(dir_c, file_name == "", strings.Contains(file.Name(), file_name) || len(dir_c) != 0)
+				if file_name == "" {
+					file_list = append(file_list, FileNode{file, dir_c})
+				} else if strings.Contains(file.Name(), file_name) || len(dir_c) != 0 {
+					file_list = append(file_list, FileNode{file, dir_c})
 				}
-				file_list = append(file_list, FileNode{file, dir_c})
 			} else {
-				file_list = append(file_list, FileNode{file, nil})
-			}
-		} else {
 
-			// this part is responsible for only appending files that contain the file_name content in them
-			if file_name != "" {
-				if strings.Contains(file.Name(), file_name) {
+				// this part is responsible for only appending files that contain the file_name content in them
+				// fmt.Printf("filter is: '%s' file name is '%s'\n", file_name, file.Name())
+				if file_name == "" {
+					file_list = append(file_list, FileNode{file, nil})
+				} else if strings.Contains(file.Name(), file_name) {
 					file_list = append(file_list, FileNode{file, nil})
 				}
-			} else {
-				file_list = append(file_list, FileNode{file, nil})
 			}
 		}
 	}
