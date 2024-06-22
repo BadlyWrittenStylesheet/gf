@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/fatih/color"
@@ -13,8 +14,9 @@ import (
 
 var max_depth int
 var searchPhrase string
-var file_type string
-var file_ext string
+var searchType string
+var searchExtension string
+var sortFiles string
 
 var active color.Color = *color.New(color.Bold, color.FgHiBlue)
 var inactive color.Color = *color.New(color.FgHiBlack, color.Italic)
@@ -27,8 +29,9 @@ type FileNode struct {
 func main() {
 	flag.IntVar(&max_depth, "d", 3, "Set the max depth of file checking.")
 	flag.StringVar(&searchPhrase, "n", "", "Search for files with the given phrase in name")
-	flag.StringVar(&file_type, "t", "", "Specify if should search for files or directories")
-	flag.StringVar(&file_ext, "e", "", "Search for files with a given extension")
+	flag.StringVar(&searchType, "t", "", "Specify if should search for files or directories")
+	flag.StringVar(&searchExtension, "e", "", "Search for files with a given extension")
+	flag.StringVar(&sortFiles, "s", "", "Sort files by name, size or modification time")
 
 	flag.Parse()
 
@@ -53,21 +56,28 @@ func main() {
 func PrintChildren(all []FileNode, indent int) error {
 	for i, file := range all {
 
-		var ind string
+		var ind string = strings.Repeat("  ", max(indent))
 		if indent != 0 {
 			if i == len(all)-1 {
-				ind = strings.Repeat("  ", max(indent)) + "└-- "
+				ind += " └-- "
 			} else {
-				ind = strings.Repeat("  ", max(indent)) + "|-- "
+				ind += " |-- "
 			}
 		}
 
 		fmt.Print(ind)
-		if len(file.Children) == 0 || strings.Contains(file.Name(), searchPhrase) {
+
+		if !file.IsDir() && ((searchPhrase != "" &&
+			strings.Contains(file.Name(), searchPhrase)) ||
+			(filterByExtension(file))) {
+			active.Print(file.Name())
+		} else if filterByName(file) {
 			active.Print(file.Name())
 		} else {
 			inactive.Print(file.Name())
+
 		}
+
 		if file.IsDir() {
 			fmt.Println("/")
 			err := PrintChildren(file.Children, indent+1)
@@ -92,6 +102,14 @@ func GetDirectoryChildren(dir_path string, current_depth int) ([]FileNode, error
 			if file.IsDir() {
 
 				dirChildren, err := GetDirectoryChildren(dir_path+"/"+file.Name(), current_depth+1)
+				switch sortFiles {
+				case "name":
+					sortFilesByName(dirChildren)
+				case "size":
+					sortFilesBySize(dirChildren)
+				case "date":
+					sortFilesByDate(dirChildren)
+				}
 				if err != nil {
 					return nil, err
 				}
@@ -120,15 +138,15 @@ func shouldIncludeDir(file fs.DirEntry, children []FileNode) bool {
 }
 
 func filterByName(file fs.DirEntry) bool {
-	if file_ext != "" && file.IsDir() {
+	if searchExtension != "" && file.IsDir() {
 		return false
 	}
 	return searchPhrase == "" || strings.Contains(file.Name(), searchPhrase)
 }
 
 func filterByType(file fs.DirEntry) bool {
-	// log.Println(file, file_type, file.IsDir())
-	switch file_type {
+	// log.Println(file, searchType, file.IsDir())
+	switch searchType {
 	case "d":
 		return file.IsDir()
 	case "f":
@@ -139,8 +157,34 @@ func filterByType(file fs.DirEntry) bool {
 }
 
 func filterByExtension(file fs.DirEntry) bool {
-	return file_ext == "" || strings.HasSuffix(
+	return searchExtension == "" || strings.HasSuffix(
 		file.Name(), "."+
 			strings.TrimPrefix(
-				file_ext, "."))
+				searchExtension, "."))
+}
+
+func sortFilesByName(files []FileNode) {
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Name() < files[j].Name()
+		// infoI, _ := files[i].Info()
+		// infoJ, _ := files[j].Info()
+		// return infoI.Size() < infoJ.Size()
+	})
+}
+
+func sortFilesBySize(files []FileNode) {
+	sort.Slice(files, func(i, j int) bool {
+		infoI, _ := files[i].Info()
+		infoJ, _ := files[j].Info()
+		return infoI.Size() < infoJ.Size()
+	})
+}
+
+func sortFilesByDate(files []FileNode) {
+	sort.Slice(files, func(i, j int) bool {
+		infoI, _ := files[i].Info()
+		infoJ, _ := files[j].Info()
+		return infoI.ModTime().Before(infoJ.ModTime())
+	})
+
 }
